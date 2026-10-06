@@ -1,0 +1,47 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run wgt
+
+      # The TV reads the version from config.xml, so a tag must match it.
+      - name: Check tag matches config.xml and package.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          widget=$(grep -o 'id="[^"]*" version="[0-9.]*"' static/config.xml | sed 's/.*version="//; s/"//')
+          pkg=$(node -p "require('./package.json').version")
+          echo "tag=$tag config.xml=$widget package.json=$pkg"
+          [ "$tag" = "$widget" ] && [ "$tag" = "$pkg" ]
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: go2rtc-tizen.wgt
+          path: go2rtc-tizen.wgt
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: go2rtc-tizen.wgt
+          generate_release_notes: true
