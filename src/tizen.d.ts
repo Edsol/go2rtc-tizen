@@ -23,7 +23,13 @@ interface AVPlay {
 }
 
 interface Window {
-  webapis?: { avplay: AVPlay };
+  webapis?: {
+    avplay: AVPlay;
+    appcommon?: {
+      setScreenSaver(state: number, onSuccess?: () => void, onError?: (e: unknown) => void): void;
+      AppCommonScreenSaverState: { SCREEN_SAVER_OFF: number; SCREEN_SAVER_ON: number };
+    };
+  };
   tizen?: {
     tvinputdevice: { registerKey(name: string): void };
     application: { getCurrentApplication(): { exit(): void } };

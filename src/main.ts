@@ -1,5 +1,6 @@
-import { Camera, Go2rtc } from './api';
+import { AuthError, Camera, Go2rtc } from './api';
 import { AvPlayer, avplaySupported } from './avplay';
+import { setLanguage, t } from './i18n';
 import { Key, registerTvKeys } from './keys';
 import { log } from './log';
 import { MsePlayer, mseSupported, resetMseBroken } from './mse';
@@ -15,8 +16,8 @@ const avObject = $('avplay');
 const settingsEl = $('settings');
 
 let settings: Settings = loadSettings();
-let api = new Go2rtc(serverUrl(settings));
-document.body.classList.toggle('debug', settings.debug);
+let api = makeApi();
+applySettings();
 let streams: Camera[] = [];
 let focus = 0;
 let current = -1;
@@ -27,11 +28,34 @@ let watchdog = 0;
 let restarts = 0;
 const MAX_RESTARTS = 3;
 let refreshTimer = 0;
+let retryTimer = 0;
+const RETRY_MS = 10000;
 const mse = new MsePlayer(video);
 const av = new AvPlayer();
 
 type View = 'grid' | 'player' | 'settings';
 let view: View = 'grid';
+
+function makeApi(): Go2rtc {
+  return new Go2rtc(serverUrl(settings), settings.user, settings.pass);
+}
+
+function applySettings(): void {
+  document.body.classList.toggle('debug', settings.debug);
+  setLanguage(settings.lang);
+  setScreenSaver(settings.screensaver);
+}
+
+function setScreenSaver(allowed: boolean): void {
+  const common = window.webapis?.appcommon;
+  if (!common) return;
+  const st = common.AppCommonScreenSaverState;
+  try {
+    common.setScreenSaver(allowed ? st.SCREEN_SAVER_ON : st.SCREEN_SAVER_OFF);
+  } catch (e) {
+    log(`screensaver: ${(e as Error).message || e}`);
+  }
+}
 
 function cols(): number {
   return streams.length <= 1 ? 1 : streams.length <= 4 ? 2 : 3;
@@ -43,12 +67,19 @@ function setStatus(msg: string): void {
 
 async function loadGrid(): Promise<void> {
   if (!settings.host) return openSettings();
+  clearTimeout(retryTimer);
   setStatus('');
   try {
     streams = await api.listCameras();
   } catch (e) {
-    setStatus(`Server non raggiungibile: ${(e as Error).message}`);
-    streams = [];
+    if (e instanceof AuthError) {
+      setStatus(t('unauthorized'));
+      return openSettings();
+    }
+    setStatus(t('unreachable', { error: (e as Error).message }));
+    // Keep the last grid on screen and retry: the server may just be restarting.
+    retryTimer = window.setTimeout(() => { if (view === 'grid') loadGrid(); }, RETRY_MS);
+    if (streams.length) return;
   }
   grid.className = `grid cols-${cols()}`;
   grid.innerHTML = '';
@@ -57,15 +88,18 @@ async function loadGrid(): Promise<void> {
     tile.className = 'tile';
     tile.innerHTML = `<img alt=""><span></span>`;
     tile.querySelector('span')!.textContent =
-      name + (audio === 'aac' ? '  · audio' : '') + (online ? '' : '  · non connessa');
+      name + (audio === 'aac' ? `  · ${t('audio')}` : '') + (online ? '' : `  · ${t('notConnected')}`);
     if (!online) tile.classList.add('offline');
     grid.appendChild(tile);
   }
-  if (!streams.length && !statusEl.textContent) setStatus('Nessuna camera configurata in go2rtc');
+  if (!streams.length && !statusEl.textContent) setStatus(t('noCameras'));
   focus = Math.min(focus, Math.max(0, streams.length - 1));
   renderFocus();
   refreshSnapshots();
 }
+
+/** Tile widths from style.css (.cols-N .tile), rounded up. */
+const SNAPSHOT_WIDTH: Record<number, number> = { 1: 1280, 2: 960, 3: 640 };
 
 function refreshSnapshots(): void {
   clearTimeout(refreshTimer);
@@ -74,7 +108,7 @@ function refreshSnapshots(): void {
     // Load off-screen so a failed or slow frame never blanks the previous one.
     const next = new Image();
     next.onload = () => { img.src = next.src; };
-    next.src = api.snapshotUrl(streams[i].sub || streams[i].name);
+    next.src = api.snapshotUrl(streams[i].sub || streams[i].name, SNAPSHOT_WIDTH[cols()]);
   });
   refreshTimer = window.setTimeout(refreshSnapshots, settings.refreshSec * 1000);
 }
@@ -98,14 +132,14 @@ async function openPlayer(index: number, isRestart = false): Promise<void> {
 
   // Main streams can exceed the TV decoder (e.g. 3072x1728), so the sub stream is a fallback.
   const sources = [cam.tv, cam.name, cam.sub].filter((s): s is string => !!s);
-  if (cam.audio === 'other') log(`${cam.name}: audio non AAC, aggiungi ${cam.name}_tv con #audio=aac per sentirlo`);
+  if (cam.audio === 'other') log(`${cam.name}: audio is not AAC, add ${cam.name}_tv with #audio=aac to hear it`);
   for (const src of sources) {
     if (mine !== session) return;
-    log(`Apro ${src} (modalità ${settings.mode})`);
+    log(`Opening ${src} (mode ${settings.mode})`);
     try {
       await playSource(src, mine);
       if (mine !== session) return;
-      $('player-label').textContent = src === cam.sub ? `${cam.name} (sub)` : cam.name;
+      $('player-label').textContent = src === cam.sub ? `${cam.name} (${t('sub')})` : cam.name;
       return;
     } catch (e) {
       if (mine === session) showPlayerError(e as Error);
@@ -117,7 +151,7 @@ async function playSource(src: string, mine: number): Promise<void> {
   const tryMse = settings.mode !== 'hls' && mseSupported();
   const tryHls = settings.mode !== 'mse' && avplaySupported();
   video.hidden = avObject.hidden = true;
-  let lastError = new Error('Nessun player disponibile');
+  let lastError = new Error(t('noPlayer'));
 
   if (tryMse) {
     try {
@@ -129,7 +163,7 @@ async function playSource(src: string, mine: number): Promise<void> {
     }
   }
   if (tryHls && mine === session) {
-    log('Fallback HLS');
+    log('HLS fallback');
     avObject.hidden = false;
     await av.play(api.hlsUrl(src), (msg) => restartPlayer(mine, msg));
     return startWatchdog(mine);
@@ -147,21 +181,21 @@ function startWatchdog(mine: number): void {
     if (mine !== session) return clearInterval(watchdog);
     const pos = av.position();
     if (pos > last) { last = pos; still = 0; restarts = 0; return; }
-    if (++still >= 2) restartPlayer(mine, 'stream bloccato');
+    if (++still >= 2) restartPlayer(mine, t('stalled'));
   }, 3000);
 }
 
 function restartPlayer(mine: number, why: string): void {
   if (mine !== session) return;
   clearInterval(watchdog);
-  if (restarts >= MAX_RESTARTS) return showPlayerError(new Error(`${why}, riprova più tardi`));
+  if (restarts >= MAX_RESTARTS) return showPlayerError(new Error(`${why}, ${t('retryLater')}`));
   restarts++;
-  log(`${why}: riapro (${restarts}/${MAX_RESTARTS})`);
+  log(`${why}: reopening (${restarts}/${MAX_RESTARTS})`);
   openPlayer(current, true);
 }
 
 function showPlayerError(e: Error): void {
-  if (view === 'player') $('player-label').textContent = `${streams[current].name} — errore: ${e.message}`;
+  if (view === 'player') $('player-label').textContent = `${streams[current].name} — ${t('error')}: ${e.message}`;
 }
 
 function closePlayer(): void {
@@ -182,6 +216,10 @@ function openSettings(): void {
   $<HTMLSelectElement>('cfg-protocol').value = settings.protocol;
   $<HTMLInputElement>('cfg-host').value = settings.host;
   $<HTMLInputElement>('cfg-port').value = settings.port;
+  $<HTMLInputElement>('cfg-user').value = settings.user;
+  $<HTMLInputElement>('cfg-pass').value = settings.pass;
+  $<HTMLSelectElement>('cfg-lang').value = settings.lang;
+  $<HTMLSelectElement>('cfg-screensaver').value = settings.screensaver ? '1' : '0';
   $<HTMLSelectElement>('cfg-debug').value = settings.debug ? '1' : '0';
   $<HTMLSelectElement>('cfg-mode').value = settings.mode;
   $<HTMLInputElement>('cfg-refresh').value = String(settings.refreshSec);
@@ -204,14 +242,18 @@ function closeSettings(save: boolean): void {
       protocol: $<HTMLSelectElement>('cfg-protocol').value as Settings['protocol'],
       host: $<HTMLInputElement>('cfg-host').value.trim(),
       port: $<HTMLInputElement>('cfg-port').value.trim() || '1984',
+      user: $<HTMLInputElement>('cfg-user').value.trim(),
+      pass: $<HTMLInputElement>('cfg-pass').value,
+      lang: $<HTMLSelectElement>('cfg-lang').value as Settings['lang'],
+      screensaver: $<HTMLSelectElement>('cfg-screensaver').value === '1',
       debug: $<HTMLSelectElement>('cfg-debug').value === '1',
       mode: $<HTMLSelectElement>('cfg-mode').value as Settings['mode'],
       refreshSec: Math.max(2, Number($<HTMLInputElement>('cfg-refresh').value) || 5),
     };
     saveSettings(settings);
     resetMseBroken();
-    api = new Go2rtc(serverUrl(settings));
-    document.body.classList.toggle('debug', settings.debug);
+    api = makeApi();
+    applySettings();
   }
   if (!settings.host) return;
   (document.activeElement as HTMLElement | null)?.blur();

@@ -32,16 +32,29 @@ function audioOf(producers: Producer[]): Audio {
   return audio.some((m) => /MPEG4-GENERIC|AAC/i.test(m)) ? 'aac' : 'other';
 }
 
+export class AuthError extends Error {}
+
 export class Go2rtc {
   readonly base: string;
+  /** Base with credentials embedded, for consumers that cannot send headers (img, AVPlay, WebSocket). */
+  private readonly mediaBase: string;
+  private readonly authHeader?: string;
 
-  constructor(url: string) {
+  constructor(url: string, user = '', pass = '') {
     this.base = url.replace(/\/+$/, '');
+    this.mediaBase = this.base;
+    if (user) {
+      const cred = `${encodeURIComponent(user)}:${encodeURIComponent(pass)}`;
+      this.mediaBase = this.base.replace('://', `://${cred}@`);
+      this.authHeader = `Basic ${btoa(`${user}:${pass}`)}`;
+    }
   }
 
   /** Groups `name`, `name_sub` (Frigate convention) and `name_tv` into one camera. */
   async listCameras(): Promise<Camera[]> {
-    const res = await fetch(`${this.base}/api/streams`);
+    const headers: Record<string, string> = this.authHeader ? { Authorization: this.authHeader } : {};
+    const res = await fetch(`${this.base}/api/streams`, { headers });
+    if (res.status === 401) throw new AuthError('HTTP 401');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const info: Record<string, { producers?: Producer[] | null }> = await res.json();
     const names = Object.keys(info);
@@ -64,16 +77,17 @@ export class Go2rtc {
       });
   }
 
-  snapshotUrl(src: string): string {
-    return `${this.base}/api/frame.jpeg?src=${encodeURIComponent(src)}&t=${Date.now()}`;
+  /** `width` makes go2rtc scale the frame, so the grid does not pull full 5 MP JPEGs. */
+  snapshotUrl(src: string, width: number): string {
+    return `${this.mediaBase}/api/frame.jpeg?src=${encodeURIComponent(src)}&width=${width}&t=${Date.now()}`;
   }
 
   hlsUrl(src: string): string {
     // MPEG-TS segments: Tizen 3.0 AVPlay does not reliably handle fMP4 HLS
-    return `${this.base}/api/stream.m3u8?src=${encodeURIComponent(src)}`;
+    return `${this.mediaBase}/api/stream.m3u8?src=${encodeURIComponent(src)}`;
   }
 
   wsUrl(src: string): string {
-    return `${this.base.replace(/^http/, 'ws')}/api/ws?src=${encodeURIComponent(src)}`;
+    return `${this.mediaBase.replace(/^http/, 'ws')}/api/ws?src=${encodeURIComponent(src)}`;
   }
 }

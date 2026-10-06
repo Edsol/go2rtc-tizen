@@ -19,7 +19,7 @@ export function mseSupported(): boolean {
 }
 
 function markMseBroken(): void {
-  log('MSE: decodifica non supportata, da ora uso HLS');
+  log('MSE: decode not supported, using HLS from now on');
   try { localStorage.setItem(BROKEN_KEY, '1'); } catch { /* storage unavailable */ }
 }
 
@@ -56,7 +56,7 @@ export class MsePlayer {
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
           const codecs = CODECS.filter((c) => MediaSource.isTypeSupported(`video/mp4; codecs="${c}"`));
-          log(`MSE: ws aperto, codec supportati: ${codecs.join(',') || 'nessuno'}`);
+          log(`MSE: ws open, supported codecs: ${codecs.join(',') || 'none'}`);
           ws.send(JSON.stringify({ type: 'mse', value: codecs.join(',') }));
         };
         ws.onerror = () => fail('WebSocket error');
@@ -66,8 +66,8 @@ export class MsePlayer {
           if (typeof ev.data === 'string') {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'mse') {
-              log(`MSE: server propone ${msg.value}`);
-              if (!MediaSource.isTypeSupported(msg.value)) return fail(`codec non supportato: ${msg.value}`);
+              log(`MSE: server offers ${msg.value}`);
+              if (!MediaSource.isTypeSupported(msg.value)) return fail(`unsupported codec: ${msg.value}`);
               this.sb = ms.addSourceBuffer(msg.value);
               this.sb.mode = 'segments';
               this.sb.addEventListener('updateend', () => this.flush());
@@ -85,14 +85,14 @@ export class MsePlayer {
           started = true;
           clearTimeout(this.timer);
           this.video.removeEventListener('timeupdate', onPlaying);
-          log(`MSE: in riproduzione ${this.video.videoWidth}x${this.video.videoHeight}`);
+          log(`MSE: playing ${this.video.videoWidth}x${this.video.videoHeight}`);
           resolve();
         };
         this.video.addEventListener('timeupdate', onPlaying);
         this.video.onerror = () => {
           const code = this.video.error ? this.video.error.code : 0;
           if (code === 3) markMseBroken();
-          fail(`errore video ${code || '?'}`);
+          fail(`video error ${code || '?'}`);
         };
         // Chromium 47: play() returns undefined, not a Promise
         const p = this.video.play() as Promise<void> | undefined;

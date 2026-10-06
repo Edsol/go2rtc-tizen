@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>go2rtc</title>
   <link rel="stylesheet" href="style.css">
   <script>
     window.onerror = function (msg, src, line) {
-      var text = 'Errore JS: ' + msg + ' (' + line + ')';
+      var text = 'JS error: ' + msg + ' (' + line + ')';
       // Read the flag from storage: if app.js itself fails to load, nothing else sets it.
       try { if (!JSON.parse(localStorage.getItem('go2rtc-tizen.settings') || '{}').debug) return; } catch (e) { return; }
       var el = document.getElementById('status');
@@ -18,7 +18,7 @@
   <script src="$WEBAPIS/webapis/webapis.js"></script>
 </head>
 <body>
-  <header><h1>go2rtc</h1><span id="status"></span><span class="hint">Tasto rosso (A) o ▲ = impostazioni</span></header>
+  <header><h1>go2rtc</h1><span id="status"></span><span class="hint" data-i18n="hint"></span></header>
 
   <main id="grid" class="grid"></main>
 
@@ -30,26 +30,49 @@
   </section>
 
   <section id="settings" hidden>
-    <h2>Impostazioni</h2>
+    <h2 data-i18n="settings">Settings</h2>
     <div class="row">
-      <label class="narrow">Protocollo
+      <label class="narrow"><span data-i18n="protocol">Protocol</span>
         <select id="cfg-protocol" class="focusable"><option value="http">http</option><option value="https">https</option></select>
       </label>
-      <label class="grow">Indirizzo IP <input id="cfg-host" class="focusable" placeholder="192.168.1.10"></label>
-      <label class="narrow">Porta <input id="cfg-port" class="focusable" type="number" placeholder="1984"></label>
+      <label class="grow"><span data-i18n="host">IP address</span> <input id="cfg-host" class="focusable" placeholder="192.168.1.10"></label>
+      <label class="narrow"><span data-i18n="port">Port</span> <input id="cfg-port" class="focusable" type="number" placeholder="1984"></label>
     </div>
-    <label>Modalità player
-      <select id="cfg-mode" class="focusable">
-        <option value="auto">Auto (MSE → HLS)</option>
-        <option value="mse">MSE</option>
-        <option value="hls">HLS (AVPlay)</option>
-      </select>
-    </label>
-    <label>Refresh anteprime (s) <input id="cfg-refresh" class="focusable" type="number" min="2" max="60"></label>
-    <label>Debug (log ed errori a schermo)
+    <div class="row">
+      <label class="grow"><span data-i18n="username">Username</span> <input id="cfg-user" class="focusable" autocomplete="off"></label>
+      <label class="grow"><span data-i18n="password">Password</span> <input id="cfg-pass" class="focusable" type="password" autocomplete="off"></label>
+    </div>
+    <div class="row">
+      <label class="grow"><span data-i18n="playerMode">Player mode</span>
+        <select id="cfg-mode" class="focusable">
+          <option value="auto" data-i18n="modeAuto">Auto (MSE → HLS)</option>
+          <option value="mse">MSE</option>
+          <option value="hls">HLS (AVPlay)</option>
+        </select>
+      </label>
+      <label class="grow"><span data-i18n="refresh">Preview refresh (s)</span> <input id="cfg-refresh" class="focusable" type="number" min="2" max="60"></label>
+    </div>
+    <div class="row">
+      <label class="grow"><span data-i18n="language">Language</span>
+        <select id="cfg-lang" class="focusable">
+          <option value="auto" data-i18n="langAuto">Automatic (TV)</option>
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+          <option value="es">Español</option>
+          <option value="de">Deutsch</option>
+        </select>
+      </label>
+      <label class="grow"><span data-i18n="screensaver">Screen saver</span>
+        <select id="cfg-screensaver" class="focusable">
+          <option value="1" data-i18n="screensaverOn">Allowed</option>
+          <option value="0" data-i18n="screensaverOff">Disabled while the app is open</option>
+        </select>
+      </label>
+    </div>
+    <label><span data-i18n="debug">Debug</span>
       <select id="cfg-debug" class="focusable"><option value="0">Off</option><option value="1">On</option></select>
     </label>
-    <button id="cfg-save" class="focusable">Salva</button>
+    <button id="cfg-save" class="focusable" data-i18n="save">Save</button>
   </section>
 
   <script src="app.js"></script>

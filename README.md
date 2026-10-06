@@ -6,6 +6,12 @@ Web app per TV Samsung (Tizen) che mostra le camere di un server [go2rtc](https:
 - Schermo intero via **MSE** su WebSocket (`/api/ws`), con fallback a **HLS** sul player nativo AVPlay (`/api/stream.m3u8`)
 - Navigazione da telecomando: frecce, OK, Indietro; **MENU** o **tasto rosso** per le impostazioni
 - Nel player le frecce passano alla camera precedente/successiva
+- Lingue: inglese (predefinita), italiano, spagnolo, tedesco; "Automatica" segue la lingua della TV
+- Autenticazione HTTP Basic (`api: username/password` di go2rtc)
+- Varianti `<camera>_sub` (anteprime e fallback) e `<camera>_tv` (riproduzione, es. audio convertito in AAC)
+- Riapertura automatica se lo stream si blocca; nuovi tentativi se il server non risponde
+- Salvaschermo disattivabile mentre l'app è aperta
+- Modalità debug con log a schermo
 
 ## Build
 
