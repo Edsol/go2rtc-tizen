@@ -36,3 +36,8 @@ Il `.wgt` si installa con Apps2Samsung oppure con `sdb` + `tizen install -n go2r
 
 - Target `es2017` / Chromium 56: gira anche sulle TV 2018–2019.
 - Le TV hanno pochi decoder hardware, quindi la griglia usa solo JPEG e lo streaming video parte solo a schermo intero.
+
+## Crediti
+
+L'icona usa il logo di [go2rtc](https://github.com/AlexxIT/go2rtc) di AlexxIT, distribuito con licenza MIT.
+Questa app è un progetto indipendente, non affiliato a go2rtc.
