@@ -7,8 +7,24 @@ import { log } from './log';
 // and a camera viewer does not need audio.
 const CODECS = ['avc1.640029', 'avc1.64002A', 'avc1.640033', 'hvc1.1.6.L153.B0'];
 
+const BROKEN_KEY = 'go2rtc-tizen.mseBroken';
+
+/**
+ * False once the TV has failed to decode an MSE stream (MEDIA_ERR_DECODE): Tizen 3.0
+ * accepts the codec string but cannot decode it, so retrying only delays playback.
+ */
 export function mseSupported(): boolean {
-  return typeof MediaSource !== 'undefined';
+  if (typeof MediaSource === 'undefined') return false;
+  try { return localStorage.getItem(BROKEN_KEY) !== '1'; } catch { return true; }
+}
+
+function markMseBroken(): void {
+  log('MSE: decodifica non supportata, da ora uso HLS');
+  try { localStorage.setItem(BROKEN_KEY, '1'); } catch { /* storage unavailable */ }
+}
+
+export function resetMseBroken(): void {
+  try { localStorage.removeItem(BROKEN_KEY); } catch { /* storage unavailable */ }
 }
 
 export class MsePlayer {
@@ -73,7 +89,11 @@ export class MsePlayer {
           resolve();
         };
         this.video.addEventListener('timeupdate', onPlaying);
-        this.video.onerror = () => fail(`errore video ${this.video.error ? this.video.error.code : '?'}`);
+        this.video.onerror = () => {
+          const code = this.video.error ? this.video.error.code : 0;
+          if (code === 3) markMseBroken();
+          fail(`errore video ${code || '?'}`);
+        };
         // Chromium 47: play() returns undefined, not a Promise
         const p = this.video.play() as Promise<void> | undefined;
         if (p && p.catch) p.catch(() => undefined);

@@ -37,6 +37,11 @@ export class AvPlayer {
     });
   }
 
+  /** Playback position in ms, or -1 when nothing is playing. */
+  position(): number {
+    try { return window.webapis!.avplay.getCurrentTime(); } catch { return -1; }
+  }
+
   stop(): void {
     document.body.classList.remove('avplay');
     document.documentElement.style.background = '';

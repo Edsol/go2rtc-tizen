@@ -2,7 +2,7 @@ import { Camera, Go2rtc } from './api';
 import { AvPlayer, avplaySupported } from './avplay';
 import { Key, registerTvKeys } from './keys';
 import { log } from './log';
-import { MsePlayer, mseSupported } from './mse';
+import { MsePlayer, mseSupported, resetMseBroken } from './mse';
 import { loadSettings, saveSettings, serverUrl, Settings } from './settings';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -22,6 +22,10 @@ let focus = 0;
 let current = -1;
 /** Bumped on every open/close so a superseded attempt stops instead of racing the new one. */
 let session = 0;
+let watchdog = 0;
+/** Consecutive automatic reopens of the current camera, reset once playback progresses. */
+let restarts = 0;
+const MAX_RESTARTS = 3;
 let refreshTimer = 0;
 const mse = new MsePlayer(video);
 const av = new AvPlayer();
@@ -78,8 +82,10 @@ function renderFocus(): void {
   grid.children[focus]?.scrollIntoView({ block: 'nearest' });
 }
 
-async function openPlayer(index: number): Promise<void> {
+async function openPlayer(index: number, isRestart = false): Promise<void> {
   if (!streams[index]) return;
+  if (!isRestart) restarts = 0;
+  clearInterval(watchdog);
   current = index;
   view = 'player';
   clearTimeout(refreshTimer);
@@ -121,9 +127,33 @@ async function playSource(src: string, mine: number): Promise<void> {
   if (tryHls && mine === session) {
     log('Fallback HLS');
     avObject.hidden = false;
-    return av.play(api.hlsUrl(src), (msg) => showPlayerError(new Error(msg)));
+    await av.play(api.hlsUrl(src), (msg) => restartPlayer(mine, msg));
+    return startWatchdog(mine);
   }
   throw lastError;
+}
+
+// AVPlay can keep reporting PLAYING while a live HLS stream has silently stalled (frozen
+// frame), so the position is polled and the stream reopened when it stops advancing.
+function startWatchdog(mine: number): void {
+  let last = -1;
+  let still = 0;
+  clearInterval(watchdog);
+  watchdog = window.setInterval(() => {
+    if (mine !== session) return clearInterval(watchdog);
+    const pos = av.position();
+    if (pos > last) { last = pos; still = 0; restarts = 0; return; }
+    if (++still >= 2) restartPlayer(mine, 'stream bloccato');
+  }, 3000);
+}
+
+function restartPlayer(mine: number, why: string): void {
+  if (mine !== session) return;
+  clearInterval(watchdog);
+  if (restarts >= MAX_RESTARTS) return showPlayerError(new Error(`${why}, riprova più tardi`));
+  restarts++;
+  log(`${why}: riapro (${restarts}/${MAX_RESTARTS})`);
+  openPlayer(current, true);
 }
 
 function showPlayerError(e: Error): void {
@@ -132,6 +162,7 @@ function showPlayerError(e: Error): void {
 
 function closePlayer(): void {
   session++;
+  clearInterval(watchdog);
   mse.stop();
   av.stop();
   playerEl.hidden = true;
@@ -174,6 +205,7 @@ function closeSettings(save: boolean): void {
       refreshSec: Math.max(2, Number($<HTMLInputElement>('cfg-refresh').value) || 5),
     };
     saveSettings(settings);
+    resetMseBroken();
     api = new Go2rtc(serverUrl(settings));
     document.body.classList.toggle('debug', settings.debug);
   }

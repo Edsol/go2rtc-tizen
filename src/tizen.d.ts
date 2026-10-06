@@ -17,6 +17,8 @@ interface AVPlay {
   setDisplayMethod(method: 'PLAYER_DISPLAY_MODE_LETTER_BOX' | 'PLAYER_DISPLAY_MODE_FULL_SCREEN'): void;
   setListener(listener: AVPlayListener): void;
   setStreamingProperty(prop: string, value: string): void;
+  /** Playback position in ms. */
+  getCurrentTime(): number;
   getState(): 'NONE' | 'IDLE' | 'READY' | 'PLAYING' | 'PAUSED';
 }
 
