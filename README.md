@@ -66,3 +66,7 @@ On first launch the app opens the settings: enter the go2rtc IP address (port de
 The icon is based on the [go2rtc](https://github.com/AlexxIT/go2rtc) logo by AlexxIT, released
 under the MIT license. This app is an independent project, not affiliated with go2rtc, Frigate
 or Samsung.
+
+## License
+
+[MIT](LICENSE)
