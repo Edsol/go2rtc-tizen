@@ -15,6 +15,19 @@ server — including the one built into [Frigate](https://frigate.video/).
 ![go2rtc](https://img.shields.io/badge/go2rtc-1.9-red)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 
+<br><br>
+
+<img src="docs/screenshots/grid.jpg" alt="Camera grid" width="860">
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/player.jpg" alt="Full-screen live view" width="420"><br><sub>Full-screen live view</sub></td>
+    <td align="center"><img src="docs/screenshots/settings.jpg" alt="Settings" width="420"><br><sub>Settings</sub></td>
+  </tr>
+</table>
+
+<sub>Demo cameras with illustrated placeholder frames.</sub>
+
 </div>
 
 ---
