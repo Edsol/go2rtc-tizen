@@ -114,7 +114,7 @@ go2rtc:
 |---|---|
 | **Tested on** | Samsung UE55MU6120 (2017, Tizen 3.0, Chromium 47) |
 | **Video** | H.264 via HLS (AVPlay) or MSE where supported; H.265 untested |
-| **Audio** | AAC |
+| **Audio** | AAC (verified with 16 kHz mono camera audio); PCMA/PCMU need a `_tv` variant |
 | **go2rtc** | 1.9.14 embedded in Frigate 0.18; standalone go2rtc should work the same |
 
 <details>
