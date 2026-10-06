@@ -7,6 +7,8 @@
   <script>
     window.onerror = function (msg, src, line) {
       var text = 'Errore JS: ' + msg + ' (' + line + ')';
+      // Read the flag from storage: if app.js itself fails to load, nothing else sets it.
+      try { if (!JSON.parse(localStorage.getItem('go2rtc-tizen.settings') || '{}').debug) return; } catch (e) { return; }
       var el = document.getElementById('status');
       if (el) el.textContent = text;
       var lg = document.getElementById('log');
@@ -29,7 +31,13 @@
 
   <section id="settings" hidden>
     <h2>Impostazioni</h2>
-    <label>Server go2rtc <input id="cfg-url" class="focusable" placeholder="http://192.168.1.10:1984"></label>
+    <div class="row">
+      <label class="narrow">Protocollo
+        <select id="cfg-protocol" class="focusable"><option value="http">http</option><option value="https">https</option></select>
+      </label>
+      <label class="grow">Indirizzo IP <input id="cfg-host" class="focusable" placeholder="192.168.1.10"></label>
+      <label class="narrow">Porta <input id="cfg-port" class="focusable" type="number" placeholder="1984"></label>
+    </div>
     <label>Modalità player
       <select id="cfg-mode" class="focusable">
         <option value="auto">Auto (MSE → HLS)</option>
@@ -38,6 +46,9 @@
       </select>
     </label>
     <label>Refresh anteprime (s) <input id="cfg-refresh" class="focusable" type="number" min="2" max="60"></label>
+    <label>Debug (log ed errori a schermo)
+      <select id="cfg-debug" class="focusable"><option value="0">Off</option><option value="1">On</option></select>
+    </label>
     <button id="cfg-save" class="focusable">Salva</button>
   </section>
 

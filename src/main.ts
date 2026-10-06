@@ -3,7 +3,7 @@ import { AvPlayer, avplaySupported } from './avplay';
 import { Key, registerTvKeys } from './keys';
 import { log } from './log';
 import { MsePlayer, mseSupported } from './mse';
-import { loadSettings, saveSettings, Settings } from './settings';
+import { loadSettings, saveSettings, serverUrl, Settings } from './settings';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -15,7 +15,8 @@ const avObject = $('avplay');
 const settingsEl = $('settings');
 
 let settings: Settings = loadSettings();
-let api = new Go2rtc(settings.url);
+let api = new Go2rtc(serverUrl(settings));
+document.body.classList.toggle('debug', settings.debug);
 let streams: Camera[] = [];
 let focus = 0;
 let current = -1;
@@ -35,7 +36,7 @@ function setStatus(msg: string): void {
 }
 
 async function loadGrid(): Promise<void> {
-  if (!settings.url) return openSettings();
+  if (!settings.host) return openSettings();
   setStatus('');
   try {
     streams = await api.listCameras();
@@ -138,7 +139,10 @@ function closePlayer(): void {
 function openSettings(): void {
   view = 'settings';
   settingsEl.hidden = false;
-  $<HTMLInputElement>('cfg-url').value = settings.url;
+  $<HTMLSelectElement>('cfg-protocol').value = settings.protocol;
+  $<HTMLInputElement>('cfg-host').value = settings.host;
+  $<HTMLInputElement>('cfg-port').value = settings.port;
+  $<HTMLSelectElement>('cfg-debug').value = settings.debug ? '1' : '0';
   $<HTMLSelectElement>('cfg-mode').value = settings.mode;
   $<HTMLInputElement>('cfg-refresh').value = String(settings.refreshSec);
   focusField(0);
@@ -157,14 +161,18 @@ function focusField(i: number): void {
 function closeSettings(save: boolean): void {
   if (save) {
     settings = {
-      url: $<HTMLInputElement>('cfg-url').value.trim(),
+      protocol: $<HTMLSelectElement>('cfg-protocol').value as Settings['protocol'],
+      host: $<HTMLInputElement>('cfg-host').value.trim(),
+      port: $<HTMLInputElement>('cfg-port').value.trim() || '1984',
+      debug: $<HTMLSelectElement>('cfg-debug').value === '1',
       mode: $<HTMLSelectElement>('cfg-mode').value as Settings['mode'],
       refreshSec: Math.max(2, Number($<HTMLInputElement>('cfg-refresh').value) || 5),
     };
     saveSettings(settings);
-    api = new Go2rtc(settings.url);
+    api = new Go2rtc(serverUrl(settings));
+    document.body.classList.toggle('debug', settings.debug);
   }
-  if (!settings.url) return;
+  if (!settings.host) return;
   (document.activeElement as HTMLElement | null)?.blur();
   settingsEl.hidden = true;
   view = 'grid';
