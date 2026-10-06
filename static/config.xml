@@ -4,7 +4,7 @@
   <tizen:application id="G2rtcView0.go2rtc" package="G2rtcView0" required_version="3.0"/>
   <content src="index.html"/>
   <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
-  <icon src="icon.png"/>
+  <icon src="icon.png" width="512" height="423"/>
   <name>go2rtc</name>
   <access origin="*" subdomains="true"/>
   <tizen:privilege name="http://tizen.org/privilege/internet"/>
