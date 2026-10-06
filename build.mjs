@@ -6,13 +6,16 @@ rmSync('dist', { recursive: true, force: true });
 mkdirSync('dist', { recursive: true });
 cpSync('static', 'dist', { recursive: true });
 
-// es2017 keeps the bundle runnable on the Chromium shipped with 2018-2019 TVs
+// Tizen 3.0 (2017 TVs) runs Chromium 47: no async/await (lowered to generators), and
+// let/const/class only work in strict mode, hence the banner.
 const options = {
   entryPoints: ['src/main.ts'],
   bundle: true,
   minify: !watch,
   sourcemap: watch,
-  target: ['es2017', 'chrome56'],
+  target: ['es2015'],
+  format: 'iife',
+  banner: { js: '"use strict";' },
   outfile: 'dist/app.js',
 };
 

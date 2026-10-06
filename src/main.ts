@@ -42,7 +42,7 @@ async function loadGrid(): Promise<void> {
     setStatus(`Server non raggiungibile: ${(e as Error).message}`);
     streams = [];
   }
-  grid.style.setProperty('--cols', String(cols()));
+  grid.className = `grid cols-${cols()}`;
   grid.innerHTML = '';
   for (const { name } of streams) {
     const tile = document.createElement('div');
@@ -60,7 +60,7 @@ async function loadGrid(): Promise<void> {
 function refreshSnapshots(): void {
   clearTimeout(refreshTimer);
   if (view !== 'grid') return;
-  grid.querySelectorAll('img').forEach((img, i) => {
+  Array.from(grid.querySelectorAll('img')).forEach((img, i) => {
     // Load off-screen so a failed or slow frame never blanks the previous one.
     const next = new Image();
     next.onload = () => { img.src = next.src; };
@@ -70,7 +70,7 @@ function refreshSnapshots(): void {
 }
 
 function renderFocus(): void {
-  grid.querySelectorAll('.tile').forEach((t, i) => t.classList.toggle('focused', i === focus));
+  Array.from(grid.querySelectorAll('.tile')).forEach((t, i) => t.classList.toggle('focused', i === focus));
   grid.children[focus]?.scrollIntoView({ block: 'nearest' });
 }
 
