@@ -52,11 +52,13 @@ async function loadGrid(): Promise<void> {
   }
   grid.className = `grid cols-${cols()}`;
   grid.innerHTML = '';
-  for (const { name } of streams) {
+  for (const { name, audio, online } of streams) {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.innerHTML = `<img alt=""><span></span>`;
-    tile.querySelector('span')!.textContent = name;
+    tile.querySelector('span')!.textContent =
+      name + (audio === 'aac' ? '  · audio' : '') + (online ? '' : '  · non connessa');
+    if (!online) tile.classList.add('offline');
     grid.appendChild(tile);
   }
   if (!streams.length && !statusEl.textContent) setStatus('Nessuna camera configurata in go2rtc');
@@ -95,13 +97,15 @@ async function openPlayer(index: number, isRestart = false): Promise<void> {
   $('player-label').textContent = cam.name;
 
   // Main streams can exceed the TV decoder (e.g. 3072x1728), so the sub stream is a fallback.
-  for (const src of cam.sub ? [cam.name, cam.sub] : [cam.name]) {
+  const sources = [cam.tv, cam.name, cam.sub].filter((s): s is string => !!s);
+  if (cam.audio === 'other') log(`${cam.name}: audio non AAC, aggiungi ${cam.name}_tv con #audio=aac per sentirlo`);
+  for (const src of sources) {
     if (mine !== session) return;
     log(`Apro ${src} (modalità ${settings.mode})`);
     try {
       await playSource(src, mine);
       if (mine !== session) return;
-      $('player-label').textContent = src === cam.name ? cam.name : `${cam.name} (sub)`;
+      $('player-label').textContent = src === cam.sub ? `${cam.name} (sub)` : cam.name;
       return;
     } catch (e) {
       if (mine === session) showPlayerError(e as Error);

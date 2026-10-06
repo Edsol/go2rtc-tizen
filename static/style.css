@@ -37,3 +37,4 @@ header h1 { margin: 0; font-size: 40px; }
 /* AVPlay draws below the page: punch through every opaque layer above it */
 body.avplay, body.avplay #player { background: transparent; }
 body.avplay header, body.avplay #grid { visibility: hidden; }
+.tile.offline img { opacity: .4; }
