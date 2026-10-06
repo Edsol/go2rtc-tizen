@@ -1,4 +1,4 @@
-import { Go2rtc } from './api';
+import { Camera, Go2rtc } from './api';
 import { AvPlayer, avplaySupported } from './avplay';
 import { Key, registerTvKeys } from './keys';
 import { MsePlayer, mseSupported } from './mse';
@@ -15,7 +15,7 @@ const settingsEl = $('settings');
 
 let settings: Settings = loadSettings();
 let api = new Go2rtc(settings.url);
-let streams: string[] = [];
+let streams: Camera[] = [];
 let focus = 0;
 let current = -1;
 let refreshTimer = 0;
@@ -37,14 +37,14 @@ async function loadGrid(): Promise<void> {
   if (!settings.url) return openSettings();
   setStatus('');
   try {
-    streams = await api.listStreams();
+    streams = await api.listCameras();
   } catch (e) {
     setStatus(`Server non raggiungibile: ${(e as Error).message}`);
     streams = [];
   }
   grid.style.setProperty('--cols', String(cols()));
   grid.innerHTML = '';
-  for (const name of streams) {
+  for (const { name } of streams) {
     const tile = document.createElement('div');
     tile.className = 'tile';
     tile.innerHTML = `<img alt=""><span></span>`;
@@ -64,7 +64,7 @@ function refreshSnapshots(): void {
     // Load off-screen so a failed or slow frame never blanks the previous one.
     const next = new Image();
     next.onload = () => { img.src = next.src; };
-    next.src = api.snapshotUrl(streams[i]);
+    next.src = api.snapshotUrl(streams[i].sub || streams[i].name);
   });
   refreshTimer = window.setTimeout(refreshSnapshots, settings.refreshSec * 1000);
 }
@@ -80,37 +80,46 @@ async function openPlayer(index: number): Promise<void> {
   view = 'player';
   clearTimeout(refreshTimer);
   playerEl.hidden = false;
-  const name = streams[index];
-  $('player-label').textContent = name;
+  const cam = streams[index];
+  $('player-label').textContent = cam.name;
 
+  // Main streams can exceed the TV decoder (e.g. 3072x1728), so the sub stream is a fallback.
+  for (const src of cam.sub ? [cam.name, cam.sub] : [cam.name]) {
+    if (current !== index || view !== 'player') return;
+    try {
+      await playSource(src);
+      $('player-label').textContent = src === cam.name ? cam.name : `${cam.name} (sub)`;
+      return;
+    } catch (e) {
+      showPlayerError(e as Error);
+    }
+  }
+}
+
+async function playSource(src: string): Promise<void> {
   const tryMse = settings.mode !== 'hls' && mseSupported();
   const tryHls = settings.mode !== 'mse' && avplaySupported();
   video.hidden = avObject.hidden = true;
+  let lastError = new Error('Nessun player disponibile');
 
   if (tryMse) {
     try {
       video.hidden = false;
-      await mse.play(api.wsUrl(name));
-      return;
+      return await mse.play(api.wsUrl(src));
     } catch (e) {
       video.hidden = true;
-      if (!tryHls) return showPlayerError(e as Error);
+      lastError = e as Error;
     }
   }
   if (tryHls) {
-    try {
-      avObject.hidden = false;
-      await av.play(api.hlsUrl(name), (msg) => showPlayerError(new Error(msg)));
-      return;
-    } catch (e) {
-      return showPlayerError(e as Error);
-    }
+    avObject.hidden = false;
+    return av.play(api.hlsUrl(src), (msg) => showPlayerError(new Error(msg)));
   }
-  showPlayerError(new Error('Nessun player disponibile'));
+  throw lastError;
 }
 
 function showPlayerError(e: Error): void {
-  if (view === 'player') $('player-label').textContent = `${streams[current]} — errore: ${e.message}`;
+  if (view === 'player') $('player-label').textContent = `${streams[current].name} — errore: ${e.message}`;
 }
 
 function closePlayer(): void {

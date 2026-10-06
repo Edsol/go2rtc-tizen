@@ -1,5 +1,13 @@
 // go2rtc HTTP API: https://github.com/AlexxIT/go2rtc#module-api
 
+const SUB = '_sub';
+
+export interface Camera {
+  name: string;
+  /** Lower-resolution stream, used for snapshots and as playback fallback. */
+  sub?: string;
+}
+
 export class Go2rtc {
   readonly base: string;
 
@@ -7,10 +15,16 @@ export class Go2rtc {
     this.base = url.replace(/\/+$/, '');
   }
 
-  async listStreams(): Promise<string[]> {
+  /** Groups `name` and `name_sub` (Frigate convention) into one camera. */
+  async listCameras(): Promise<Camera[]> {
     const res = await fetch(`${this.base}/api/streams`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return Object.keys(await res.json()).sort();
+    const names = Object.keys(await res.json());
+    const set = new Set(names);
+    return names
+      .filter((n) => !(n.endsWith(SUB) && set.has(n.slice(0, -SUB.length))))
+      .sort()
+      .map((name) => ({ name, sub: set.has(name + SUB) ? name + SUB : undefined }));
   }
 
   snapshotUrl(src: string): string {
