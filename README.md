@@ -24,13 +24,13 @@ npm run build        # → dist/
 
 ## Pacchetto e installazione
 
-Serve la Tizen CLI (Tizen Studio) con un profilo di certificati Samsung:
-
 ```bash
-TIZEN_PROFILE=mio-profilo npm run package   # → dist/go2rtc.wgt
+npm run wgt   # → go2rtc-tizen.wgt (non firmato)
 ```
 
-Il `.wgt` si installa con Apps2Samsung oppure con `sdb` + `tizen install -n go2rtc.wgt`.
+Il pacchetto si installa con Apps2Samsung ("Custom WGT File"), che lo firma con il proprio
+certificato. In alternativa, con la Tizen CLI e un profilo di certificati Samsung:
+`TIZEN_PROFILE=mio-profilo npm run package`.
 
 ## Requisiti go2rtc
 

@@ -9,7 +9,7 @@
     "watch": "node build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "package": "npm run build && tizen package -t wgt -s ${TIZEN_PROFILE:-default} -- dist",
-    "wgt": "npm run build && cd dist && rm -f ../go2rtc.wgt && zip -qr -X ../go2rtc.wgt . && cd .. && unzip -l go2rtc.wgt"
+    "wgt": "npm run build && cd dist && rm -f ../go2rtc-tizen.wgt && zip -qr -X ../go2rtc-tizen.wgt . && cd .. && unzip -l go2rtc-tizen.wgt"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",
