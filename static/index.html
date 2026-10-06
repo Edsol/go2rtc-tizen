@@ -6,8 +6,11 @@
   <link rel="stylesheet" href="style.css">
   <script>
     window.onerror = function (msg, src, line) {
+      var text = 'Errore JS: ' + msg + ' (' + line + ')';
       var el = document.getElementById('status');
-      if (el) el.textContent = 'Errore JS: ' + msg + ' (' + line + ')';
+      if (el) el.textContent = text;
+      var lg = document.getElementById('log');
+      if (lg) lg.textContent += '\n' + text;
     };
   </script>
   <script src="$WEBAPIS/webapis/webapis.js"></script>
@@ -21,6 +24,7 @@
     <video id="video" autoplay muted playsinline></video>
     <object id="avplay" type="application/avplayer"></object>
     <div id="player-label"></div>
+    <pre id="log"></pre>
   </section>
 
   <section id="settings" hidden>

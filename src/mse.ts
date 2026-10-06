@@ -1,6 +1,8 @@
 // go2rtc MSE over WebSocket: the client sends the codecs it can decode,
 // the server answers with the chosen mime type and then streams fMP4 segments.
 
+import { log } from './log';
+
 const CODECS = [
   'avc1.640029', 'avc1.64002A', 'avc1.640033',
   'hvc1.1.6.L153.B0',
@@ -19,12 +21,15 @@ export class MsePlayer {
 
   constructor(private video: HTMLVideoElement) {}
 
-  /** Resolves once the first segment is appended, rejects if the stream fails first. */
+  /** Resolves once frames are actually decoded, rejects if the stream fails first. */
   play(wsUrl: string, timeoutMs = 8000): Promise<void> {
     this.stop();
     return new Promise((resolve, reject) => {
       let started = false;
-      const fail = (why: string) => { if (!started) { this.stop(); reject(new Error(why)); } };
+      const fail = (why: string) => {
+        log(`MSE: ${why}`);
+        if (!started) { this.stop(); reject(new Error(why)); }
+      };
       const timer = setTimeout(() => fail('MSE timeout'), timeoutMs);
 
       const ms = (this.ms = new MediaSource());
@@ -34,14 +39,18 @@ export class MsePlayer {
         ws.binaryType = 'arraybuffer';
         ws.onopen = () => {
           const codecs = CODECS.filter((c) => MediaSource.isTypeSupported(`video/mp4; codecs="${c}"`));
+          log(`MSE: ws aperto, codec supportati: ${codecs.join(',') || 'nessuno'}`);
           ws.send(JSON.stringify({ type: 'mse', value: codecs.join(',') }));
         };
         ws.onerror = () => fail('WebSocket error');
         ws.onclose = () => fail('WebSocket closed');
         ws.onmessage = (ev) => {
+          if (this.ws !== ws) return;
           if (typeof ev.data === 'string') {
             const msg = JSON.parse(ev.data);
             if (msg.type === 'mse') {
+              log(`MSE: server propone ${msg.value}`);
+              if (!MediaSource.isTypeSupported(msg.value)) return fail(`codec non supportato: ${msg.value}`);
               this.sb = ms.addSourceBuffer(msg.value);
               this.sb.mode = 'segments';
               this.sb.addEventListener('updateend', () => this.flush());
@@ -52,14 +61,21 @@ export class MsePlayer {
           }
           this.queue.push(ev.data);
           this.flush();
-          if (!started) {
-            started = true;
-            clearTimeout(timer);
-            this.video.play().catch(() => undefined);
-            resolve();
-          }
         };
-      }, { once: true });
+        const onPlaying = () => {
+          if (started || this.video.currentTime <= 0) return;
+          started = true;
+          clearTimeout(timer);
+          this.video.removeEventListener('timeupdate', onPlaying);
+          log(`MSE: in riproduzione ${this.video.videoWidth}x${this.video.videoHeight}`);
+          resolve();
+        };
+        this.video.addEventListener('timeupdate', onPlaying);
+        this.video.onerror = () => fail(`errore video ${this.video.error ? this.video.error.code : '?'}`);
+        // Chromium 47: play() returns undefined, not a Promise
+        const p = this.video.play() as Promise<void> | undefined;
+        if (p && p.catch) p.catch(() => undefined);
+      });
     });
   }
 
@@ -89,6 +105,7 @@ export class MsePlayer {
       this.ws.close();
     }
     this.ws = this.sb = undefined;
+    this.video.onerror = null;
     this.queue = [];
     if (this.ms) {
       this.video.removeAttribute('src');

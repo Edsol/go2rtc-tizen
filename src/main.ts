@@ -1,6 +1,7 @@
 import { Camera, Go2rtc } from './api';
 import { AvPlayer, avplaySupported } from './avplay';
 import { Key, registerTvKeys } from './keys';
+import { log } from './log';
 import { MsePlayer, mseSupported } from './mse';
 import { loadSettings, saveSettings, Settings } from './settings';
 
@@ -86,6 +87,7 @@ async function openPlayer(index: number): Promise<void> {
   // Main streams can exceed the TV decoder (e.g. 3072x1728), so the sub stream is a fallback.
   for (const src of cam.sub ? [cam.name, cam.sub] : [cam.name]) {
     if (current !== index || view !== 'player') return;
+    log(`Apro ${src} (modalità ${settings.mode})`);
     try {
       await playSource(src);
       $('player-label').textContent = src === cam.name ? cam.name : `${cam.name} (sub)`;
@@ -112,6 +114,7 @@ async function playSource(src: string): Promise<void> {
     }
   }
   if (tryHls) {
+    log('Fallback HLS');
     avObject.hidden = false;
     return av.play(api.hlsUrl(src), (msg) => showPlayerError(new Error(msg)));
   }
