@@ -1,0 +1,17 @@
+{
+  "name": "go2rtc-tizen",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Samsung Tizen TV viewer for go2rtc cameras",
+  "license": "MIT",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && tizen package -t wgt -s ${TIZEN_PROFILE:-default} -- dist"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

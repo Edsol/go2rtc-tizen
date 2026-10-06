@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>go2rtc</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+  <header><h1>go2rtc</h1><span id="status"></span><span class="hint">MENU/⚙ = impostazioni</span></header>
+
+  <main id="grid" class="grid"></main>
+
+  <section id="player" hidden>
+    <video id="video" autoplay muted playsinline></video>
+    <object id="avplay" type="application/avplayer"></object>
+    <div id="player-label"></div>
+  </section>
+
+  <section id="settings" hidden>
+    <h2>Impostazioni</h2>
+    <label>Server go2rtc <input id="cfg-url" class="focusable" placeholder="http://192.168.1.10:1984"></label>
+    <label>Modalità player
+      <select id="cfg-mode" class="focusable">
+        <option value="auto">Auto (MSE → HLS)</option>
+        <option value="mse">MSE</option>
+        <option value="hls">HLS (AVPlay)</option>
+      </select>
+    </label>
+    <label>Refresh anteprime (s) <input id="cfg-refresh" class="focusable" type="number" min="2" max="60"></label>
+    <button id="cfg-save" class="focusable">Salva</button>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>
