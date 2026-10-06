@@ -1,49 +1,68 @@
 # go2rtc-tizen
 
-Web app per TV Samsung (Tizen) che mostra le camere di un server [go2rtc](https://go2rtc.org/).
+Samsung Smart TV (Tizen) app for watching the cameras of a [go2rtc](https://go2rtc.org/) server,
+including the go2rtc instance embedded in [Frigate](https://frigate.video/).
 
-- Griglia con anteprime (`/api/frame.jpeg`, aggiornate ogni N secondi)
-- Schermo intero via **MSE** su WebSocket (`/api/ws`), con fallback a **HLS** sul player nativo AVPlay (`/api/stream.m3u8`)
-- Navigazione da telecomando: frecce, OK, Indietro; **MENU** o **tasto rosso** per le impostazioni
-- Nel player le frecce passano alla camera precedente/successiva
-- Lingue: inglese (predefinita), italiano, spagnolo, tedesco; "Automatica" segue la lingua della TV
-- Autenticazione HTTP Basic (`api: username/password` di go2rtc)
-- Varianti `<camera>_sub` (anteprime e fallback) e `<camera>_tv` (riproduzione, es. audio convertito in AAC)
-- Riapertura automatica se lo stream si blocca; nuovi tentativi se il server non risponde
-- Salvaschermo disattivabile mentre l'app è aperta
-- Modalità debug con log a schermo
+## Features
+
+- Camera grid with periodically refreshed previews (`/api/frame.jpeg`, scaled server-side)
+- Full-screen live view via **MSE** over WebSocket (`/api/ws`), falling back to **HLS** on the
+  TV's native AVPlay player (`/api/stream.m3u8`)
+- Remote control navigation: arrows, OK, Back; **red key (A)** or **▲** from the top row opens
+  settings; in the player, arrows switch to the previous/next camera
+- Languages: English (default), Italian, Spanish, German; "Automatic" follows the TV language
+- HTTP Basic authentication (go2rtc `api: username/password`)
+- Stream variants: `<camera>_sub` for previews and as playback fallback, `<camera>_tv` as the
+  preferred playback stream (e.g. with audio transcoded to AAC)
+- Automatic reopen when a stream stalls; automatic retry when the server is unreachable
+- Optional screen saver suppression while the app is open
+- Debug mode with an on-screen log
 
 ## Build
 
 ```bash
 npm install
-npm run build        # → dist/
+npm run build   # → dist/
+npm run wgt     # → go2rtc-tizen.wgt (unsigned)
 ```
 
-`npm run watch` ricompila a ogni modifica.
+`npm run watch` rebuilds on every change.
 
-## Pacchetto e installazione
+## Install
 
-```bash
-npm run wgt   # → go2rtc-tizen.wgt (non firmato)
-```
+Install `go2rtc-tizen.wgt` with [Apps2Samsung](https://github.com/Apps2Samsung) ("Custom WGT
+File"), which signs it with its own certificate. Alternatively, with the Tizen CLI and a Samsung
+certificate profile: `TIZEN_PROFILE=my-profile npm run package`.
 
-Il pacchetto si installa con Apps2Samsung ("Custom WGT File"), che lo firma con il proprio
-certificato. In alternativa, con la Tizen CLI e un profilo di certificati Samsung:
-`TIZEN_PROFILE=mio-profilo npm run package`.
+On first launch the app opens the settings: enter the go2rtc IP address (port defaults to `1984`).
 
-## Requisiti go2rtc
+## go2rtc / Frigate setup
 
-- `frame.jpeg` richiede ffmpeg nel container go2rtc (serve per le anteprime).
-- Per H.265 usa la modalità **HLS (AVPlay)**: MSE su Tizen in genere decodifica solo H.264.
-- La TV deve raggiungere go2rtc in HTTP sulla LAN (porta predefinita `1984`).
+- The go2rtc API port (`1984`) must be reachable from the TV. With Frigate, publish it in
+  `docker-compose.yml`.
+- Previews need ffmpeg in go2rtc (bundled with Frigate).
+- The TV plays AAC audio only. For cameras with PCMA/PCMU audio, add a `_tv` variant:
 
-## Note
+  ```yaml
+  go2rtc:
+    streams:
+      doorbell_tv: ffmpeg:doorbell#video=copy#audio=aac
+  ```
 
-- Target `es2017` / Chromium 56: gira anche sulle TV 2018–2019.
-- Le TV hanno pochi decoder hardware, quindi la griglia usa solo JPEG e lo streaming video parte solo a schermo intero.
+- The go2rtc API exposes the camera RTSP URLs, credentials included: protect it with
+  `api: username/password` and enter the same credentials in the app settings.
 
-## Crediti
+## Compatibility
 
-L'icona usa il logo di [go2rtc](https://github.com/AlexxIT/go2rtc) di AlexxIT, distribuito con licenza MIT.
-Questa app è un progetto indipendente, non affiliato a go2rtc.
+- Tested on a 2017 Samsung TV (Tizen 3.0, Chromium 47). The bundle is compiled to ES5 and the CSS
+  avoids grid, custom properties and `inset` for that reason.
+- On Tizen 3.0, MSE fails to decode the camera streams; the app detects it once and uses HLS from
+  then on (saving the settings resets the detection).
+- TVs have few hardware decoders and AVPlay plays one video at a time, so the grid uses JPEG
+  previews and live video only runs full screen.
+
+## Credits
+
+The icon is based on the [go2rtc](https://github.com/AlexxIT/go2rtc) logo by AlexxIT, released
+under the MIT license. This app is an independent project, not affiliated with go2rtc, Frigate
+or Samsung.
