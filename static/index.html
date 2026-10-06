@@ -4,10 +4,16 @@
   <meta charset="utf-8">
   <title>go2rtc</title>
   <link rel="stylesheet" href="style.css">
+  <script>
+    window.onerror = function (msg, src, line) {
+      var el = document.getElementById('status');
+      if (el) el.textContent = 'Errore JS: ' + msg + ' (' + line + ')';
+    };
+  </script>
   <script src="$WEBAPIS/webapis/webapis.js"></script>
 </head>
 <body>
-  <header><h1>go2rtc</h1><span id="status"></span><span class="hint">MENU/⚙ = impostazioni</span></header>
+  <header><h1>go2rtc</h1><span id="status"></span><span class="hint">Tasto rosso (A) o ▲ = impostazioni</span></header>
 
   <main id="grid" class="grid"></main>
 

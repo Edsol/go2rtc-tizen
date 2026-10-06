@@ -192,7 +192,10 @@ function onKey(e: KeyboardEvent): void {
     if (k === Key.Right) focus = Math.min(last, focus + 1);
     else if (k === Key.Left) focus = Math.max(0, focus - 1);
     else if (k === Key.Down) focus = Math.min(last, focus + c);
-    else if (k === Key.Up) focus = Math.max(0, focus - c);
+    else if (k === Key.Up) {
+      if (focus < c) return void openSettings();
+      focus -= c;
+    }
     else if (k === Key.Enter) return void openPlayer(focus);
     else if (k === Key.Menu || k === Key.ColorRed) return void openSettings();
     else if (k === Key.Back || k === Key.Exit) return exitApp();
