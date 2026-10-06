@@ -32,7 +32,8 @@ export class Go2rtc {
   }
 
   hlsUrl(src: string): string {
-    return `${this.base}/api/stream.m3u8?src=${encodeURIComponent(src)}&mp4`;
+    // MPEG-TS segments: Tizen 3.0 AVPlay does not reliably handle fMP4 HLS
+    return `${this.base}/api/stream.m3u8?src=${encodeURIComponent(src)}`;
   }
 
   wsUrl(src: string): string {

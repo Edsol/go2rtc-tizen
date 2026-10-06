@@ -20,6 +20,8 @@ document.body.classList.toggle('debug', settings.debug);
 let streams: Camera[] = [];
 let focus = 0;
 let current = -1;
+/** Bumped on every open/close so a superseded attempt stops instead of racing the new one. */
+let session = 0;
 let refreshTimer = 0;
 const mse = new MsePlayer(video);
 const av = new AvPlayer();
@@ -83,23 +85,25 @@ async function openPlayer(index: number): Promise<void> {
   clearTimeout(refreshTimer);
   playerEl.hidden = false;
   const cam = streams[index];
+  const mine = ++session;
   $('player-label').textContent = cam.name;
 
   // Main streams can exceed the TV decoder (e.g. 3072x1728), so the sub stream is a fallback.
   for (const src of cam.sub ? [cam.name, cam.sub] : [cam.name]) {
-    if (current !== index || view !== 'player') return;
+    if (mine !== session) return;
     log(`Apro ${src} (modalità ${settings.mode})`);
     try {
-      await playSource(src);
+      await playSource(src, mine);
+      if (mine !== session) return;
       $('player-label').textContent = src === cam.name ? cam.name : `${cam.name} (sub)`;
       return;
     } catch (e) {
-      showPlayerError(e as Error);
+      if (mine === session) showPlayerError(e as Error);
     }
   }
 }
 
-async function playSource(src: string): Promise<void> {
+async function playSource(src: string, mine: number): Promise<void> {
   const tryMse = settings.mode !== 'hls' && mseSupported();
   const tryHls = settings.mode !== 'mse' && avplaySupported();
   video.hidden = avObject.hidden = true;
@@ -114,7 +118,7 @@ async function playSource(src: string): Promise<void> {
       lastError = e as Error;
     }
   }
-  if (tryHls) {
+  if (tryHls && mine === session) {
     log('Fallback HLS');
     avObject.hidden = false;
     return av.play(api.hlsUrl(src), (msg) => showPlayerError(new Error(msg)));
@@ -127,6 +131,7 @@ function showPlayerError(e: Error): void {
 }
 
 function closePlayer(): void {
+  session++;
   mse.stop();
   av.stop();
   playerEl.hidden = true;

@@ -3,11 +3,9 @@
 
 import { log } from './log';
 
-const CODECS = [
-  'avc1.640029', 'avc1.64002A', 'avc1.640033',
-  'hvc1.1.6.L153.B0',
-  'mp4a.40.2', 'mp4a.40.5', 'flac', 'opus',
-];
+// Video only: Tizen 3.0 fails with MEDIA_ERR_DECODE on the cameras' 16 kHz AAC track,
+// and a camera viewer does not need audio.
+const CODECS = ['avc1.640029', 'avc1.64002A', 'avc1.640033', 'hvc1.1.6.L153.B0'];
 
 export function mseSupported(): boolean {
   return typeof MediaSource !== 'undefined';
@@ -18,6 +16,7 @@ export class MsePlayer {
   private ms?: MediaSource;
   private sb?: SourceBuffer;
   private queue: ArrayBuffer[] = [];
+  private timer = 0;
 
   constructor(private video: HTMLVideoElement) {}
 
@@ -26,13 +25,15 @@ export class MsePlayer {
     this.stop();
     return new Promise((resolve, reject) => {
       let started = false;
-      const fail = (why: string) => {
-        log(`MSE: ${why}`);
-        if (!started) { this.stop(); reject(new Error(why)); }
-      };
-      const timer = setTimeout(() => fail('MSE timeout'), timeoutMs);
-
       const ms = (this.ms = new MediaSource());
+      const fail = (why: string) => {
+        if (started || this.ms !== ms) return; // a newer play() or stop() owns the player
+        log(`MSE: ${why}`);
+        this.stop();
+        reject(new Error(`MSE ${why}`));
+      };
+      this.timer = window.setTimeout(() => fail('timeout'), timeoutMs);
+
       this.video.src = URL.createObjectURL(ms);
       ms.addEventListener('sourceopen', () => {
         const ws = (this.ws = new WebSocket(wsUrl));
@@ -63,9 +64,10 @@ export class MsePlayer {
           this.flush();
         };
         const onPlaying = () => {
+          if (this.ms !== ms) return this.video.removeEventListener('timeupdate', onPlaying);
           if (started || this.video.currentTime <= 0) return;
           started = true;
-          clearTimeout(timer);
+          clearTimeout(this.timer);
           this.video.removeEventListener('timeupdate', onPlaying);
           log(`MSE: in riproduzione ${this.video.videoWidth}x${this.video.videoHeight}`);
           resolve();
@@ -100,6 +102,7 @@ export class MsePlayer {
   }
 
   stop(): void {
+    clearTimeout(this.timer);
     if (this.ws) {
       this.ws.onclose = this.ws.onerror = this.ws.onmessage = null;
       this.ws.close();

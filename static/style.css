@@ -34,3 +34,6 @@ header h1 { margin: 0; font-size: 40px; }
 #settings .row label:last-child { margin-right: 0; }
 #settings .narrow { width: 200px; }
 #settings .grow { flex: 1; }
+/* AVPlay draws below the page: punch through every opaque layer above it */
+body.avplay, body.avplay #player { background: transparent; }
+body.avplay header, body.avplay #grid { visibility: hidden; }
