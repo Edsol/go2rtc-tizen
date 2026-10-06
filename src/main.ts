@@ -229,11 +229,23 @@ function openSettings(): void {
 const fields = () => Array.from(settingsEl.querySelectorAll<HTMLElement>('.focusable'));
 let fieldIndex = 0;
 
+// Arrows only move a highlight: giving DOM focus to an input opens the TV's on-screen
+// keyboard, so focus is given on OK and taken back when the keyboard closes.
 function focusField(i: number): void {
   const list = fields();
   fieldIndex = (i + list.length) % list.length;
   list.forEach((f, n) => f.classList.toggle('focused', n === fieldIndex));
-  list[fieldIndex].focus();
+  stopEditing();
+}
+
+function editing(): HTMLElement | null {
+  const el = document.activeElement as HTMLElement | null;
+  return el && settingsEl.contains(el) && el.tagName !== 'BUTTON' ? el : null;
+}
+
+function stopEditing(): void {
+  const el = editing();
+  if (el) el.blur();
 }
 
 function closeSettings(save: boolean): void {
@@ -269,9 +281,16 @@ function exitApp(): void {
 function onKey(e: KeyboardEvent): void {
   const k = e.keyCode;
   if (view === 'settings') {
-    if (k === Key.Up) focusField(fieldIndex - 1);
-    else if (k === Key.Down) focusField(fieldIndex + 1);
-    else if (k === Key.Enter && document.activeElement?.id === 'cfg-save') closeSettings(true);
+    const field = fields()[fieldIndex];
+    if (editing()) {
+      // The keyboard or the select picker owns the keys until it is closed.
+      if (k === Key.ImeDone || k === Key.ImeCancel || k === Key.Back || k === Key.Escape) stopEditing();
+      else if (k === Key.Enter && field.tagName === 'INPUT') stopEditing();
+      else return;
+    } else if (k === Key.Up || k === Key.Left) focusField(fieldIndex - 1);
+    else if (k === Key.Down || k === Key.Right) focusField(fieldIndex + 1);
+    else if (k === Key.Enter && field.id === 'cfg-save') closeSettings(true);
+    else if (k === Key.Enter) return field.focus(); // default action opens the keyboard/picker
     else if (k === Key.Back || k === Key.Escape) closeSettings(false);
     else return;
   } else if (view === 'player') {
@@ -302,4 +321,6 @@ function onKey(e: KeyboardEvent): void {
 registerTvKeys();
 document.addEventListener('keydown', onKey);
 $('cfg-save').addEventListener('click', () => closeSettings(true));
+// Back to arrow navigation once a value is picked from a select.
+Array.from(settingsEl.querySelectorAll('select')).forEach((sel) => sel.addEventListener('change', () => sel.blur()));
 loadGrid();

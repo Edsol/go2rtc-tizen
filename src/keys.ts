@@ -1,6 +1,8 @@
 export const enum Key {
   Left = 37, Up = 38, Right = 39, Down = 40, Enter = 13,
   Back = 10009, Escape = 27, Menu = 18, ColorRed = 403, Exit = 10182,
+  /** On-screen keyboard "Done" / "Cancel" on Samsung TVs. */
+  ImeDone = 65376, ImeCancel = 65385,
 }
 
 export function registerTvKeys(): void {
